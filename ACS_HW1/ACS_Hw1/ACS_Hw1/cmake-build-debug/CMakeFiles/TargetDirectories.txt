@@ -1,0 +1,3 @@
+/Users/semenkondakov/Downloads/ACS_HW1/ACS_Hw1/ACS_Hw1/cmake-build-debug/CMakeFiles/rebuild_cache.dir
+/Users/semenkondakov/Downloads/ACS_HW1/ACS_Hw1/ACS_Hw1/cmake-build-debug/CMakeFiles/edit_cache.dir
+/Users/semenkondakov/Downloads/ACS_HW1/ACS_Hw1/ACS_Hw1/cmake-build-debug/CMakeFiles/ACS_Hw1.dir

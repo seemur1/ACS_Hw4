@@ -1,0 +1,229 @@
+     1                                  ;------------------------------------------------------------------------------
+     2                                  ; perimeter.asm - единица компиляции, вбирающая функции вычисления периметра
+     3                                  ;------------------------------------------------------------------------------
+     4                                  extern FRACTION
+     5                                  extern POLAR
+     6                                  extern COMPLEX
+     7                                  extern numberSize
+     8                                  extern memcpy
+     9                                  
+    10                                  ;----------------------------------------------
+    11                                  ; Вычисление значения дроби.
+    12                                  ;double f_cast (void *me) {
+    13                                  ;    return (double)(*((int*)(me))) / (double)(*((int*)(me + doubleSize)));
+    14                                  ;}
+    15                                  
+    16                                  global f_cast
+    17                                  f_cast:
+    18                                  section .text
+    19 00000000 55                      push rbp
+    20 00000001 4889E5                  mov rbp, rsp
+    21                                  
+    22                                      ; В rdi адрес дроби
+    23 00000004 F20F2A07                    cvtsi2sd xmm0, dword [rdi]
+    24 00000008 F20F2A4F08                  cvtsi2sd xmm1, dword [rdi+8]
+    25 0000000D F20F5EC1                    divsd xmm0, xmm1
+    26                                  
+    27 00000011 C9                      leave
+    28 00000012 C3                      ret
+    29                                  
+    30                                  ;----------------------------------------------
+    31                                  ; Вычисление значения полярного числа
+    32                                  ;double p_cast (void *me) {
+    33                                  ;    return *((double*)(me));
+    34                                  ;}
+    35                                  global p_cast
+    36                                  p_cast:
+    37                                  section .text
+    38 00000013 55                      push rbp
+    39 00000014 4889E5                  mov rbp, rsp
+    40                                  
+    41                                      ; В rdi адрес полярного числа
+    42 00000017 F20F1007                    movsd xmm0, QWORD [rdi]
+    43                                  
+    44 0000001B C9                      leave
+    45 0000001C C3                      ret
+    46                                  
+    47                                  ;----------------------------------------------
+    48                                  ; Вычисление значения комплексного числа
+    49                                  ;double c_cast (void *me) {
+    50                                  ;    return sqrt(*((double*)(me)) * *((double*)(me)) + *((double*)(me + doubleSize)) * *((double*)(me + doubleSize)));
+    51                                  ;}
+    52                                  global c_cast
+    53                                  c_cast:
+    54                                  section .text
+    55                                      extern sqrt
+    56 0000001D 55                      push rbp
+    57 0000001E 4889E5                  mov rbp, rsp
+    58                                  
+    59                                      ; В rdi адрес комплексного числа
+    60 00000021 F20F1007                    movsd xmm0, QWORD [rdi]
+    61 00000025 F20F59C0                    mulsd xmm0, xmm0
+    62 00000029 F20F104F04                  movsd xmm1, QWORD [rdi+4]
+    63 0000002E F20F59C9                    mulsd xmm1, xmm1
+    64 00000032 F20F58C1                    addsd xmm0, xmm1
+    65 00000036 E8(00000000)                call sqrt
+    66                                  
+    67 0000003B C9                      leave
+    68 0000003C C3                      ret
+    69                                  
+    70                                  ;----------------------------------------------
+    71                                  ; Вычисление значения обобщённого числа.
+    72                                  ;double n_cast(void *me) {
+    73                                  ;    switch(*((int*)me)) {
+    74                                  ;        case COMPLEX:
+    75                                  ;            return c_cast(me + intSize);
+    76                                  ;        case POLAR:
+    77                                  ;            return p_cast(me + intSize);
+    78                                  ;        default:
+    79                                  ;            return f_cast(me + intSize);
+    80                                  ;    }
+    81                                  ;}
+    82                                  global n_cast
+    83                                  n_cast:
+    84                                  section .text
+    85 0000003D 55                      push rbp
+    86 0000003E 4889E5                  mov rbp, rsp
+    87                                  
+    88                                      ; В rdi адрес фигуры
+    89 00000041 8B07                        mov eax, [rdi]
+    90 00000043 3B0425[00000000]            cmp eax, [FRACTION]
+    91 0000004A 741A                        je .fCast
+    92 0000004C 3B0425[00000000]            cmp eax, [POLAR]
+    93 00000053 741C                        je .pCast
+    94 00000055 3B0425[00000000]            cmp eax, [COMPLEX]
+    95 0000005C 741E                        je .cCast
+    96 0000005E 31C0                        xor eax, eax
+    97 00000060 F20F2AC0                    cvtsi2sd    xmm0, eax
+    98 00000064 EB1F                        jmp     .return
+    99                                  .fCast:
+   100                                      ; Вычисление периметра прямоугольника
+   101 00000066 4883C704                    add     rdi, 4
+   102 0000006A E891FFFFFF                  call    f_cast
+   103 0000006F EB14                        jmp     .return
+   104                                  .pCast:
+   105                                      ; Вычисление периметра треугольника
+   106 00000071 4883C704                    add     rdi, 4
+   107 00000075 E899FFFFFF                  call    p_cast
+   108 0000007A EB09                        jmp     .return
+   109                                  .cCast:
+   110                                      ; Вычисление периметра треугольника
+   111 0000007C 4883C704                    add     rdi, 4
+   112 00000080 E898FFFFFF                  call    c_cast
+   113                                  .return:
+   114 00000085 C9                      leave
+   115 00000086 C3                      ret
+   116                                  
+   117                                  ; rdi - void *c
+   118                                  ; rsi - void *item
+   119                                  ; edx - l_border
+   120                                  ; ecx - r_border
+   121                                  ; return - eax
+   122                                  ;----------------------------------------------
+   123                                  ;int BinarySearch(void *c, void *item, int l_border, int r_border) {
+   124                                  ;    if (r_border <= l_border) { return (n_cast(item) > n_cast(c + l_border * numberSize)) ? (l_border + 1) : l_border; }
+   125                                  ;
+   126                                  ;    int mid = (l_border + r_border) / 2;
+   127                                  ;
+   128                                  ;    if (n_cast(item) == n_cast(c + mid * numberSize)) { return mid + 1; }
+   129                                  ;
+   130                                  ;    if (n_cast(item) > n_cast(c + mid * numberSize)) { return BinarySearch(c, item, mid + 1, r_border); }
+   131                                  ;    return BinarySearch(c, item, l_border, mid - 1);
+   132                                  ;}
+   133                                  
+   134                                  global BinarySearch
+   135                                  BinarySearch:
+   136                                  section .text
+   137 00000087 55                              push    rbp
+   138 00000088 4889E5                          mov     rbp, rsp
+   139 0000008B 53                              push    rbx
+   140 0000008C 4883EC38                        sub     rsp, 56
+   141 00000090 48897DD8                        mov     qword [rbp-40], rdi
+   142 00000094 488975D0                        mov     qword [rbp-48], rsi
+   143 00000098 8955CC                          mov     dword [rbp-52], edx
+   144 0000009B 894DC8                          mov     dword [rbp-56], ecx
+   145 0000009E 8B45C8                          mov     eax, dword [rbp-56]
+   146 000000A1 3B45CC                          cmp     eax, dword [rbp-52]
+   147 000000A4 7F42                            jg      .second_Condition
+   148 000000A6 488B45D0                        mov     rax, qword [rbp-48]
+   149 000000AA 4889C7                          mov     rdi, rax
+   150 000000AD E88BFFFFFF                      call    n_cast
+   151 000000B2 89C3                            mov     ebx, eax
+   152 000000B4 8B0425[00000000]                mov     eax, [numberSize]
+   153 000000BB 0FAF45CC                        imul    eax, dword [rbp-52]
+   154 000000BF 4863D0                          movsx   rdx, eax
+   155 000000C2 488B45D8                        mov     rax, qword [rbp-40]
+   156 000000C6 4801D0                          add     rax, rdx
+   157 000000C9 4889C7                          mov     rdi, rax
+   158 000000CC E86CFFFFFF                      call    n_cast
+   159 000000D1 39C3                            cmp     ebx, eax
+   160 000000D3 7D0B                            jge     .return_low
+   161 000000D5 8B45CC                          mov     eax, dword [rbp-52]
+   162 000000D8 83C001                          add     eax, 1
+   163 000000DB E9C4000000                      jmp     .return
+   164                                  .return_low:
+   165 000000E0 8B45CC                          mov     eax, dword [rbp-52]
+   166 000000E3 E9BC000000                      jmp     .return
+   167                                  .second_Condition:
+   168 000000E8 8B55CC                          mov     edx, dword [rbp-52]
+   169 000000EB 8B45C8                          mov     eax, dword [rbp-56]
+   170 000000EE 01D0                            add     eax, edx
+   171 000000F0 89C2                            mov     edx, eax
+   172 000000F2 C1EA1F                          shr     edx, 31
+   173 000000F5 01D0                            add     eax, edx
+   174 000000F7 BA00000000                      mov edx, 0
+   175 000000FC B902000000                      mov ecx, 2
+   176 00000101 F7F1                            div ecx
+   177 00000103 8945EC                          mov     dword [rbp-20], eax
+   178 00000106 488B45D0                        mov     rax, qword [rbp-48]
+   179 0000010A 4889C7                          mov     rdi, rax
+   180 0000010D E82BFFFFFF                      call    n_cast
+   181 00000112 89C3                            mov     ebx, eax
+   182 00000114 8B0425[00000000]                mov     eax, dword [numberSize]
+   183 0000011B 0FAF45EC                        imul    eax, dword [rbp-20]
+   184 0000011F 4863D0                          movsx   rdx, eax
+   185 00000122 488B45D8                        mov     rax, qword [rbp-40]
+   186 00000126 4801D0                          add     rax, rdx
+   187 00000129 4889C7                          mov     rdi, rax
+   188 0000012C E80CFFFFFF                      call    n_cast
+   189 00000131 39C3                            cmp     ebx, eax
+   190 00000133 7508                            jne     .third_Condition
+   191 00000135 8B45EC                          mov     eax, dword [rbp-20]
+   192 00000138 83C001                          add     eax, 1
+   193 0000013B EB67                            jmp     .return
+   194                                  .third_Condition:
+   195 0000013D 488B45D0                        mov     rax, qword [rbp-48]
+   196 00000141 4889C7                          mov     rdi, rax
+   197 00000144 E8F4FEFFFF                      call    n_cast
+   198 00000149 89C3                            mov     ebx, eax
+   199 0000014B 8B0425[00000000]                mov     eax, dword [numberSize]
+   200 00000152 0FAF45EC                        imul    eax, dword [rbp-20]
+   201 00000156 4863D0                          movsx   rdx, eax
+   202 00000159 488B45D8                        mov     rax, qword [rbp-40]
+   203 0000015D 4801D0                          add     rax, rdx
+   204 00000160 4889C7                          mov     rdi, rax
+   205 00000163 E8D5FEFFFF                      call    n_cast
+   206 00000168 39C3                            cmp     ebx, eax
+   207 0000016A 7D1F                            jge     .return_low_mid_1
+   208 0000016C 8B45EC                          mov     eax, dword [rbp-20]
+   209 0000016F 8D7801                          lea     edi, [rax+1]
+   210 00000172 8B55C8                          mov     edx, dword [rbp-56]
+   211 00000175 488B75D0                        mov     rsi, qword [rbp-48]
+   212 00000179 488B45D8                        mov     rax, qword [rbp-40]
+   213 0000017D 89D1                            mov     ecx, edx
+   214 0000017F 89FA                            mov     edx, edi
+   215 00000181 4889C7                          mov     rdi, rax
+   216 00000184 E8FEFEFFFF                      call    BinarySearch
+   217 00000189 EB19                            jmp     .return
+   218                                  .return_low_mid_1:
+   219 0000018B 8B45EC                          mov     eax, dword [rbp-20]
+   220 0000018E 8D48FF                          lea     ecx, [rax-1]
+   221 00000191 8B55CC                          mov     edx, dword [rbp-52]
+   222 00000194 488B75D0                        mov     rsi, qword [rbp-48]
+   223 00000198 488B45D8                        mov     rax, qword [rbp-40]
+   224 0000019C 4889C7                          mov     rdi, rax
+   225 0000019F E8E3FEFFFF                      call    BinarySearch
+   226                                  .return:
+   227 000001A4 488B5DF8                        mov     rbx, qword [rbp-8]
+   228 000001A8 C9                              leave
+   229 000001A9 C3                              ret
